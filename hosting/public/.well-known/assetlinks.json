@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.example.proyecto_tecnifix",
+      "sha256_cert_fingerprints": [
+        "4B:D9:D6:9A:DB:2A:2B:05:73:69:BB:B8:FD:D8:4D:4C:51:13:1A:B6:75:CF:07:7C:D3:66:CC:7F:22:42:AA:10"
+      ]
+    }
+  }
+]

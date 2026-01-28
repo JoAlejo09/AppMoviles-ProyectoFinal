@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Restablecer contraseña</title>
+</head>
+<body style="font-family: Arial; text-align: center; padding: 40px;">
+
+  <h2>🔐 Restablecer contraseña</h2>
+  <p>Vamos a abrir la aplicación para cambiar tu contraseña.</p>
+
+  <button onclick="openApp()" style="padding:12px 20px;font-size:16px;">
+    Abrir aplicación
+  </button>
+
+  <script>
+    function openApp() {
+      window.location.href =
+        "com.example.proyecto_tecnifix://reset-callback#type=recovery";
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cuenta confirmada</title>
+</head>
+<body style="font-family: Arial; text-align: center; padding: 40px;">
+
+  <h2>✅ Cuenta confirmada</h2>
+  <p>Tu correo fue confirmado correctamente.</p>
+  <p>Pulsa el botón para volver a la app.</p>
+
+  <button onclick="openApp()" style="padding:12px 20px;font-size:16px;">
+    Abrir aplicación
+  </button>
+
+  <script>
+    function openApp() {
+      window.location.href =
+        "com.example.proyecto_tecnifix://login-callback";
+    }
+  </script>
+
+</body>
+</html>

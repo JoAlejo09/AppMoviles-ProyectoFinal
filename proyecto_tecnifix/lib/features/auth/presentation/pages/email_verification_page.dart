@@ -1,92 +1,62 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../controllers/auth_controller.dart';
 
 class EmailVerificationPage extends StatelessWidget {
   const EmailVerificationPage({super.key});
 
-  Future<void> _resendEmail(
-    BuildContext context,
-    AuthController authController,
-  ) async {
-    try {
-      final email = authController.userEmail;
-
-      if (email == null) {
-        throw Exception('No se pudo obtener el email del usuario');
-      }
-
-      await authController.resendEmail(email);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Te enviamos nuevamente el correo de verificación'),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final authController = context.watch<AuthController>();
+    final auth = context.watch<AuthController>();
 
-    return WillPopScope(
-      onWillPop: () async => false,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Verifica tu correo'),
-          automaticallyImplyLeading: false,
-        ),
-        body: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Icon(Icons.mark_email_unread_outlined, size: 80),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Verifica tu correo'),
+        automaticallyImplyLeading: false,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.mark_email_unread_outlined, size: 80),
+            const SizedBox(height: 16),
+            const Text(
+              'Te enviamos un correo de verificación.\n'
+              'Revisa tu bandeja de entrada y confirma tu cuenta.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
 
-              const SizedBox(height: 24),
+            // Reenviar correo
+            ElevatedButton(
+              onPressed: () async {
+                await auth.resendVerificationEmail();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Correo reenviado')),
+                );
+              },
+              child: const Text('Reenviar correo'),
+            ),
 
-              const Text(
-                'Revisa tu correo',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-              ),
+            const SizedBox(height: 12),
 
-              const SizedBox(height: 16),
+            // Cerrar sesión
+            TextButton(
+              onPressed: () async {
+                await auth.logout();
+              },
+              child: const Text('Cerrar sesión'),
+            ),
 
-              Text(
-                'Hemos enviado un enlace de verificación a:\n\n'
-                '${authController.userEmail ?? ''}',
-                textAlign: TextAlign.center,
-              ),
+            const SizedBox(height: 20),
 
-              const SizedBox(height: 32),
-
-              ElevatedButton.icon(
-                onPressed: authController.isLoading
-                    ? null
-                    : () => _resendEmail(context, authController),
-                icon: const Icon(Icons.refresh),
-                label: authController.isLoading
-                    ? const CircularProgressIndicator()
-                    : const Text('Reenviar correo'),
-              ),
-
-              const SizedBox(height: 16),
-
-              const Text(
-                'Una vez que confirmes tu correo, '
-                'regresa a la app y continuaremos automáticamente.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12),
-              ),
-            ],
-          ),
+            const Text(
+              'Una vez confirmes el correo, vuelve a abrir la app.',
+              style: TextStyle(fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );

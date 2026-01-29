@@ -1,140 +1,121 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:proyecto_tecnifix/features/auth/presentation/pages/forgot_password_page.dart';
+import 'package:proyecto_tecnifix/features/auth/presentation/pages/register_page.dart';
 
 import '../controllers/auth_controller.dart';
 
 class LoginPage extends StatefulWidget {
-  final VoidCallback onBack;
-  final VoidCallback onForgotPassword;
-
-  const LoginPage({
-    super.key,
-    required this.onBack,
-    required this.onForgotPassword,
-  });
+  const LoginPage({super.key});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
+  // Controladores para leer el texto de los inputs
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
 
+  // Liberamos memoria cuando se destruye la pantalla
   @override
   void dispose() {
-    emailController.dispose();
-    passwordController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
-  }
-
-  Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    final authController = context.read<AuthController>();
-
-    try {
-      await authController.login(
-        emailController.text.trim(),
-        passwordController.text.trim(),
-      );
-    } catch (_) {}
-  }
-
-  Future<void> _loginGoogle() async {
-    final authController = context.read<AuthController>();
-
-    try {
-      await authController.loginWithGoogle();
-    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
-    final authController = context.watch<AuthController>();
+    // Escuchamos SOLO el estado (loading / error)
+    final auth = context.watch<AuthController>();
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: widget.onBack,
-        ),
-        title: const Text('Inicio de sesión'),
-      ),
+      appBar: AppBar(title: const Text('Iniciar sesión')),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              /// EMAIL
-              TextFormField(
-                controller: emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) => value == null || value.isEmpty
-                    ? 'El email es obligatorio'
-                    : null,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // EMAIL
+            TextField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Correo electrónico',
               ),
+            ),
+            const SizedBox(height: 12),
 
-              const SizedBox(height: 12),
+            // PASSWORD
+            TextField(
+              controller: _passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Contraseña'),
+            ),
+            const SizedBox(height: 20),
 
-              /// PASSWORD
-              TextFormField(
-                controller: passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Contraseña'),
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Ingrese la contraseña'
-                    : null,
-              ),
+            // ERROR
+            if (auth.error != null)
+              Text(auth.error!, style: const TextStyle(color: Colors.red)),
 
-              const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-              /// ERROR
-              if (authController.error != null)
-                Text(
-                  authController.error!,
-                  style: const TextStyle(color: Colors.red),
-                ),
-
-              const SizedBox(height: 8),
-
-              /// FORGOT PASSWORD
-              TextButton(
-                onPressed: widget.onForgotPassword,
-                child: const Text('¿Olvidaste tu contraseña?'),
-              ),
-
-              const SizedBox(height: 16),
-
-              /// LOGIN
-              ElevatedButton.icon(
-                onPressed: authController.isLoading ? null : _login,
-                icon: const Icon(Icons.login),
-                label: authController.isLoading
+            // BOTÓN LOGIN
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: auth.isLoading
+                    ? null
+                    : () {
+                        auth.login(
+                          _emailController.text.trim(),
+                          _passwordController.text.trim(),
+                        );
+                      },
+                child: auth.isLoading
                     ? const CircularProgressIndicator()
-                    : const Text('Iniciar sesión'),
+                    : const Text('Entrar'),
               ),
+            ),
 
-              const SizedBox(height: 8),
+            const SizedBox(height: 12),
 
-              /// GOOGLE
-              ElevatedButton.icon(
-                onPressed: authController.isLoading ? null : _loginGoogle,
-                icon: const Icon(
-                  Icons.g_mobiledata,
-                  color: Colors.red,
-                  size: 28,
-                ),
-                label: authController.isLoading
-                    ? const CircularProgressIndicator()
-                    : const Text('Ingresar con Google'),
+            // BOTÓN GOOGLE
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: auth.isLoading
+                    ? null
+                    : () {
+                        auth.signInWithGoogle();
+                      },
+                child: const Text('Continuar con Google'),
               ),
-            ],
-          ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // LINKS
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const RegisterPage()),
+                );
+              },
+              child: const Text('Crear cuenta'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ForgotPasswordPage()),
+                );
+              },
+              child: const Text('¿Olvidaste tu contraseña?'),
+            ),
+          ],
         ),
       ),
     );

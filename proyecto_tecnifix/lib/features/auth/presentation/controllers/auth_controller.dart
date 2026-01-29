@@ -4,122 +4,86 @@ import '../../data/auth_repository.dart';
 
 class AuthController extends ChangeNotifier {
   final AuthRepository _repository;
-  AuthController(this._repository);
 
-  //PARAMETROS BASE
-  bool _isLoading = false;
-  String? _error;
+  bool isLoading = true;
+  String? error;
+  bool _isAuthenticated = false;
 
-  // GETTERS DE ESTADO
-  bool get isLoading => _isLoading;
-  String? get error => _error;
-  //VARIABLES PARA MENSAJE
-  String? _oneTimeMessage;
-  String? get oneTimeMessage => _oneTimeMessage;
+  bool get isAuthenticated => _isAuthenticated;
+  bool get isEmailVerified => _repository.currentUser?.emailConfirmedAt != null;
 
-  bool get isLoggedIn => _repository.isLoggedIn;
-  bool get isEmailConfirmed => _repository.isEmailConfirmed;
-  Object? get currentUser => _repository.currentUser; // Para el usuario actual
-  String? get userEmail => _repository.currentUserEmail;
-  String? get userId => _repository.currentUserId;
-
-  //Metodos de cambio y notificacion de la app
-  void _setLoading(bool value) {
-    _isLoading = value;
-    notifyListeners();
+  AuthController(this._repository) {
+    _init();
   }
 
-  void _setError(String? message) {
-    _error = message;
-    notifyListeners();
+  void _init() {
+    // Estado inicial
+    _isAuthenticated = _repository.currentUser != null;
+    isLoading = false;
+
+    // 🔥 Listener GLOBAL de Supabase Auth
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final session = data.session;
+
+      _isAuthenticated = session != null;
+      notifyListeners();
+    });
   }
 
-  void _setOneTimeMessage(String message) {
-    _oneTimeMessage = message;
-    notifyListeners();
-  }
-
-  void clearOneTimeMessage() {
-    _oneTimeMessage = null;
-  }
-
-  // LOGIN
   Future<void> login(String email, String password) async {
+    _setLoading(true);
     try {
-      _setLoading(true);
-      _setError(null);
-      await _repository.signIn(email: email, password: password);
+      await _repository.login(email: email, password: password);
     } catch (e) {
-      _setError(e.toString());
-      rethrow;
-    } finally {
-      _setLoading(false);
+      error = e.toString();
     }
+    _setLoading(false);
   }
 
-  // REGISTRO
+  /// OAuth → NO loading / NO notify aquí
+  Future<void> signInWithGoogle() async {
+    await _repository.signInWithGoogle();
+  }
+
   Future<void> register(String email, String password) async {
+    _setLoading(true);
     try {
-      _setLoading(true);
-      _setError(null);
-      await _repository.signUp(email: email, password: password);
-      _setOneTimeMessage(
-        'Usuario creado. Acceda a su correo para activar la cuenta.',
-      );
+      await _repository.register(email: email, password: password);
     } catch (e) {
-      final mensaje = e.toString();
-      if (mensaje.contains('alredy registered') || mensaje.contains('email')) {
-        _setError('Este correo ya se encuentra registrado. Inicie sesión.');
-      } else {
-        _setError(e.toString());
+      error = e.toString();
+    }
+    _setLoading(false);
+  }
+
+  Future<void> resetPassword(String email) async {
+    _setLoading(true);
+    try {
+      await _repository.resetPassword(email);
+    } catch (e) {
+      error = e.toString();
+    }
+    _setLoading(false);
+  }
+
+  Future<void> resendVerificationEmail() async {
+    try {
+      final email = _repository.currentUser?.email;
+      if (email != null) {
+        await _repository.resendVerificationEmail(email);
       }
-      rethrow;
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  // LOGIN GOOGLE
-  Future<void> loginWithGoogle() async {
-    try {
-      _setLoading(true);
-      _setError(null);
-      await _repository.signInWithGoogle();
     } catch (e) {
-      _setError(e.toString());
-      rethrow;
-    } finally {
-      _setLoading(false);
+      error = e.toString();
+      notifyListeners();
     }
   }
 
-  // REENVIAR EMAIL
-  Future<void> resendEmail(String email) async {
-    await _repository.resendConfirmationEmail(email);
-  }
-
-  //RECUPERAR CONTRASEÑA
-  Future<void> recoverPassword(String email) async {
-    if (email.isEmpty) {
-      throw Exception('El correo electronico es obligatorio');
-    }
-    await _repository.sendPasswordRecoverybyEmail(email);
-  }
-
-  //ACTUALIZAR CONTRASEÑA
-  Future<void> updatePassword(String contrasena) async {
-    if (contrasena.length < 6) {
-      throw Exception('La contraseña debe tener al menos 6 caracteres');
-    }
-    await _repository.updatePassword(contrasena);
-  }
-
-  //CERRAR SESION
   Future<void> logout() async {
     await _repository.logout();
-    notifyListeners();
+    // El listener detecta session = null
   }
 
-  // STREAM AUTH
-  Stream get authChanges => _repository.authStateChanges;
+  void _setLoading(bool value) {
+    isLoading = value;
+    notifyListeners();
+  }
 }

@@ -3,6 +3,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
+
     <application
         android:label="proyecto_tecnifix"
         android:name="${applicationName}"
@@ -38,36 +39,9 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
-                    android:scheme="com.example.proyecto_tecnifix"
-                    android:host="login-callback" />
+                    android:scheme="myapp"
+                    android:host="auth" />
             </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="com.example.proyecto_tecnifix"
-                    android:host="reset-callback" />
-            </intent-filter>
-            <intent-filter android:autoVerify="true">
-            <action android:name="android.intent.action.VIEW" />
-            <category android:name="android.intent.category.DEFAULT" /> 
-            <category android:name="android.intent.category.BROWSABLE" />
-            <data
-                android:scheme="https"
-                android:host="tecnifix-62a19.web.app"
-                android:pathPrefix="/login-callback" />
-            </intent-filter>
-            <intent-filter android:autoVerify="true">
-            <action android:name="android.intent.action.VIEW" />
-            <category android:name="android.intent.category.DEFAULT" />
-            <category android:name="android.intent.category.BROWSABLE" />
-            <data
-                android:scheme="https"
-                android:host="tecnifix-62a19.web.app"
-            android:pathPrefix="/reset-callback" />
-            </intent-filter>
-
         </activity>
         <meta-data
             android:name="flutterEmbedding"

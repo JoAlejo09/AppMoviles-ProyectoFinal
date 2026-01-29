@@ -48,6 +48,8 @@ dependencies:
   #para geolocalizacion y mapas
   geolocator: ^10.1.0
   google_maps_flutter: ^2.6.0
+  app_links: ^3.4.5
+  image_picker: ^1.0.7
 
   
 dev_dependencies:

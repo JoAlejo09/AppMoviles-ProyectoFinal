@@ -11,13 +11,21 @@ class SolicitudesController extends ChangeNotifier {
   /// Lista general usada por las vistas
   List<Map<String, dynamic>> solicitudes = [];
 
+  // ─────────────────────────────────────────────
   // CLIENTE
+  // ─────────────────────────────────────────────
+
   Future<void> cargarSolicitudesCliente() async {
-    _setLoading(true);
-
-    solicitudes = await _repository.obtenerSolicitudesCliente();
-
-    _setLoading(false);
+    try {
+      _setLoading(true);
+      solicitudes = await _repository.obtenerSolicitudesCliente();
+    } catch (e, st) {
+      debugPrint('❌ Error cargarSolicitudesCliente: $e');
+      debugPrint('$st');
+      solicitudes = [];
+    } finally {
+      _setLoading(false);
+    }
   }
 
   Future<int> crearSolicitud({
@@ -26,49 +34,73 @@ class SolicitudesController extends ChangeNotifier {
     String? detalles,
     String? tecnicoId,
   }) async {
-    _setLoading(true);
+    try {
+      _setLoading(true);
 
-    final data = await _repository.crearSolicitud(
-      servicioId: servicioId,
-      problema: problema,
-      detalles: detalles,
-      tecnicoId: tecnicoId,
-    );
+      final data = await _repository.crearSolicitud(
+        servicioId: servicioId,
+        problema: problema,
+        detalles: detalles,
+        tecnicoId: tecnicoId,
+      );
 
-    // refrescar lista cliente
-    solicitudes = await _repository.obtenerSolicitudesCliente();
+      // refrescar lista cliente
+      solicitudes = await _repository.obtenerSolicitudesCliente();
 
-    _setLoading(false);
-
-    return data['id'] as int;
+      return data['id'] as int;
+    } catch (e, st) {
+      debugPrint('❌ Error al crear solicitud: $e');
+      debugPrint('$st');
+      rethrow; // la UI debe enterarse
+    } finally {
+      _setLoading(false);
+    }
   }
+
+  // ─────────────────────────────────────────────
   // TÉCNICO
+  // ─────────────────────────────────────────────
 
   Future<void> cargarSolicitudesTecnico() async {
-    _setLoading(true);
-
-    solicitudes = await _repository.obtenerSolicitudesTecnico();
-
-    _setLoading(false);
+    try {
+      _setLoading(true);
+      solicitudes = await _repository.obtenerSolicitudesTecnico();
+    } catch (e, st) {
+      debugPrint('❌ Error cargarSolicitudesTecnico: $e');
+      debugPrint('$st');
+      solicitudes = [];
+    } finally {
+      _setLoading(false);
+    }
   }
 
   Future<void> cargarSolicitudesPendientes() async {
-    _setLoading(true);
-
-    solicitudes = await _repository.obtenerSolicitudesPendientes();
-
-    _setLoading(false);
+    try {
+      _setLoading(true);
+      solicitudes = await _repository.obtenerSolicitudesPendientes();
+    } catch (e, st) {
+      debugPrint('❌ Error cargarSolicitudesPendientes: $e');
+      debugPrint('$st');
+      solicitudes = [];
+    } finally {
+      _setLoading(false);
+    }
   }
 
   Future<void> aceptarSolicitud(int solicitudId) async {
-    _setLoading(true);
+    try {
+      _setLoading(true);
 
-    await _repository.aceptarSolicitud(solicitudId);
+      await _repository.aceptarSolicitud(solicitudId);
 
-    // Volver a cargar pendientes
-    solicitudes = await _repository.obtenerSolicitudesPendientes();
-
-    _setLoading(false);
+      // Volver a cargar pendientes
+      solicitudes = await _repository.obtenerSolicitudesPendientes();
+    } catch (e, st) {
+      debugPrint('❌ Error aceptarSolicitud: $e');
+      debugPrint('$st');
+    } finally {
+      _setLoading(false);
+    }
   }
 
   // ─────────────────────────────────────────────
@@ -79,14 +111,19 @@ class SolicitudesController extends ChangeNotifier {
     required int solicitudId,
     required String nuevoEstado,
   }) async {
-    _setLoading(true);
+    try {
+      _setLoading(true);
 
-    await _repository.cambiarEstado(
-      solicitudId: solicitudId,
-      nuevoEstado: nuevoEstado,
-    );
-
-    _setLoading(false);
+      await _repository.cambiarEstado(
+        solicitudId: solicitudId,
+        nuevoEstado: nuevoEstado,
+      );
+    } catch (e, st) {
+      debugPrint('❌ Error cambiarEstado: $e');
+      debugPrint('$st');
+    } finally {
+      _setLoading(false);
+    }
   }
 
   // ─────────────────────────────────────────────

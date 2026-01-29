@@ -14,16 +14,20 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  final _mensajeCtrl = TextEditingController();
+  final TextEditingController _mensajeCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    context.read<ChatController>().cargarMensajes(widget.solicitudId);
+
+    // 🔥 Iniciar chat + escuchar realtime
+    context.read<ChatController>().iniciarChat(widget.solicitudId);
   }
 
   @override
   void dispose() {
+    // 🧹 Cerrar canal realtime
+    context.read<ChatController>().disposeChat();
     _mensajeCtrl.dispose();
     super.dispose();
   }
@@ -31,12 +35,13 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     final chat = context.watch<ChatController>();
-    final userId = context.read<ChatController>();
+    final userId = Supabase.instance.client.auth.currentUser!.id;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Chat')),
       body: Column(
         children: [
+          // ───── MENSAJES ─────
           Expanded(
             child: chat.isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -45,9 +50,7 @@ class _ChatPageState extends State<ChatPage> {
                     itemCount: chat.mensajes.length,
                     itemBuilder: (_, i) {
                       final m = chat.mensajes[i];
-                      final esMio =
-                          m['emisor_id'] ==
-                          Supabase.instance.client.auth.currentUser!.id;
+                      final bool esMio = m['emisor_id'] == userId;
 
                       return Align(
                         alignment: esMio
@@ -62,12 +65,17 @@ class _ChatPageState extends State<ChatPage> {
                                 : Colors.grey.shade200,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Text(m['mensaje']),
+                          child: Text(
+                            m['mensaje'],
+                            style: const TextStyle(fontSize: 15),
+                          ),
                         ),
                       );
                     },
                   ),
           ),
+
+          // ───── INPUT ─────
           Padding(
             padding: const EdgeInsets.all(8),
             child: Row(
@@ -83,11 +91,12 @@ class _ChatPageState extends State<ChatPage> {
                 IconButton(
                   icon: const Icon(Icons.send),
                   onPressed: () async {
-                    if (_mensajeCtrl.text.trim().isEmpty) return;
+                    final texto = _mensajeCtrl.text.trim();
+                    if (texto.isEmpty) return;
 
                     await chat.enviarMensaje(
                       solicitudId: widget.solicitudId,
-                      mensaje: _mensajeCtrl.text.trim(),
+                      mensaje: texto,
                     );
 
                     _mensajeCtrl.clear();

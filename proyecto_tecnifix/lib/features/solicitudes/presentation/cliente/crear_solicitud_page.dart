@@ -40,7 +40,7 @@ class _CrearSolicitudPageState extends State<CrearSolicitudPage> {
   }
 
   // ─────────────────────────────────────────────
-  // Cargar TOP 5 técnicos
+  // Cargar TOP técnicos
   // ─────────────────────────────────────────────
   Future<void> _cargarTecnicos() async {
     final perfil = context.read<PerfilController>().perfil;
@@ -48,21 +48,24 @@ class _CrearSolicitudPageState extends State<CrearSolicitudPage> {
 
     setState(() => _cargandoTecnicos = true);
 
-    final repo = TecnicoRepository(SupabaseService.client);
+    try {
+      final repo = TecnicoRepository(SupabaseService.client);
 
-    final data = await repo.obtenerTopTecnicos(
-      lat: perfil['latitud'],
-      lng: perfil['longitud'],
-    );
+      final data = await repo.obtenerTopTecnicos(
+        lat: perfil['latitud'],
+        lng: perfil['longitud'],
+      );
 
-    setState(() {
-      _tecnicos = data;
-      _cargandoTecnicos = false;
-    });
+      setState(() => _tecnicos = data);
+    } catch (e) {
+      debugPrint('❌ Error cargando técnicos: $e');
+    } finally {
+      setState(() => _cargandoTecnicos = false);
+    }
   }
 
   // ─────────────────────────────────────────────
-  // Seleccionar imagen (cámara o galería)
+  // Seleccionar imagen
   // ─────────────────────────────────────────────
   Future<void> _seleccionarImagen() async {
     final picked = await _picker.pickImage(
@@ -71,43 +74,65 @@ class _CrearSolicitudPageState extends State<CrearSolicitudPage> {
     );
 
     if (picked != null) {
-      setState(() {
-        _imagenes.add(File(picked.path));
-      });
+      setState(() => _imagenes.add(File(picked.path)));
     }
   }
 
   // ─────────────────────────────────────────────
-  // Crear solicitud + subir imágenes
+  // Crear solicitud
   // ─────────────────────────────────────────────
   Future<void> _crearSolicitud() async {
-    if (!_formKey.currentState!.validate()) return;
+    debugPrint('🔥 BOTÓN CREAR PRESIONADO');
 
-    final controller = context.read<SolicitudesController>();
+    final valid = _formKey.currentState!.validate();
+    debugPrint('🧪 FORM VALID: $valid');
 
-    // 1️⃣ Crear solicitud
-    final solicitudId = await controller.crearSolicitud(
-      servicioId: _servicioId!,
-      problema: _problemaCtrl.text.trim(),
-      detalles: _detallesCtrl.text.trim(),
-      tecnicoId: _tecnicoSeleccionadoId,
-    );
-
-    // 2️⃣ Subir imágenes (si hay)
-    if (_imagenes.isNotEmpty) {
-      final imgRepo = SolicitudImagenRepository(SupabaseService.client);
-
-      for (final img in _imagenes) {
-        final url = await imgRepo.subirImagen(
-          file: img,
-          solicitudId: solicitudId,
-        );
-
-        await imgRepo.guardarImagen(solicitudId: solicitudId, url: url);
-      }
+    if (!valid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Completa los campos obligatorios')),
+      );
+      return;
     }
 
-    if (mounted) Navigator.pop(context);
+    if (_servicioId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Selecciona un servicio')));
+      return;
+    }
+
+    try {
+      final controller = context.read<SolicitudesController>();
+
+      final solicitudId = await controller.crearSolicitud(
+        servicioId: _servicioId!,
+        problema: _problemaCtrl.text.trim(),
+        detalles: _detallesCtrl.text.trim(),
+        tecnicoId: _tecnicoSeleccionadoId,
+      );
+
+      debugPrint('✅ Solicitud creada con ID: $solicitudId');
+
+      // Subir imágenes
+      if (_imagenes.isNotEmpty) {
+        final imgRepo = SolicitudImagenRepository(SupabaseService.client);
+
+        for (final img in _imagenes) {
+          final url = await imgRepo.subirImagen(
+            file: img,
+            solicitudId: solicitudId,
+          );
+          await imgRepo.guardarImagen(solicitudId: solicitudId, url: url);
+        }
+      }
+
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      debugPrint('❌ Error al crear solicitud: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error al crear solicitud: $e')));
+    }
   }
 
   @override
@@ -189,9 +214,8 @@ class _CrearSolicitudPageState extends State<CrearSolicitudPage> {
                               top: 0,
                               right: 0,
                               child: GestureDetector(
-                                onTap: () {
-                                  setState(() => _imagenes.remove(img));
-                                },
+                                onTap: () =>
+                                    setState(() => _imagenes.remove(img)),
                                 child: const Icon(
                                   Icons.close,
                                   color: Colors.red,
@@ -212,50 +236,6 @@ class _CrearSolicitudPageState extends State<CrearSolicitudPage> {
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // ───────── Técnicos ─────────
-                  const Text(
-                    'Técnicos recomendados',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  if (_cargandoTecnicos)
-                    const Center(child: CircularProgressIndicator()),
-
-                  if (!_cargandoTecnicos && _tecnicos.isEmpty)
-                    const Text(
-                      'No hay técnicos cercanos disponibles',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-
-                  ..._tecnicos.map((t) {
-                    final selected = _tecnicoSeleccionadoId == t['id'];
-
-                    return Card(
-                      child: ListTile(
-                        title: Text('${t['nombre']} ${t['apellido']}'),
-                        subtitle: Text(
-                          '⭐ ${t['reputacion'].toStringAsFixed(1)} • '
-                          '${t['distancia'].toStringAsFixed(1)} km',
-                        ),
-                        trailing: selected
-                            ? const Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                              )
-                            : null,
-                        onTap: () {
-                          setState(() {
-                            _tecnicoSeleccionadoId = t['id'];
-                          });
-                        },
-                      ),
-                    );
-                  }),
 
                   const SizedBox(height: 28),
 

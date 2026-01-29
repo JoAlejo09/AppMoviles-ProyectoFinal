@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:proyecto_tecnifix/features/chat/controller/chat_controller.dart';
+import 'package:proyecto_tecnifix/features/chat/data/chat_repository.dart';
 import 'package:proyecto_tecnifix/features/solicitudes/controller/solicitudes_controller.dart';
 import 'package:proyecto_tecnifix/features/solicitudes/data/solicitudes_repository.dart';
 import 'package:proyecto_tecnifix/features/tecnico/controller/tecnico_controller.dart';
@@ -48,6 +50,10 @@ Future<void> main() async {
           create: (_) => SolicitudesController(
             SolicitudesRepository(SupabaseService.client),
           ),
+        ),
+        //CHATS
+        ChangeNotifierProvider(
+          create: (_) => ChatController(ChatRepository(SupabaseService.client)),
         ),
       ],
       child: const MyApp(),

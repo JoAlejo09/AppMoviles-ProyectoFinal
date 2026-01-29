@@ -19,7 +19,10 @@ class _TecnicoTrabajosPageState extends State<TecnicoTrabajosPage> {
     super.didChangeDependencies();
 
     if (!_cargado) {
-      context.read<SolicitudesController>().cargarSolicitudesTecnico();
+      // Ejecutar después del build para evitar problemas de contexto
+      Future.microtask(() {
+        context.read<SolicitudesController>().cargarSolicitudesTecnico();
+      });
       _cargado = true;
     }
   }
@@ -28,49 +31,53 @@ class _TecnicoTrabajosPageState extends State<TecnicoTrabajosPage> {
   Widget build(BuildContext context) {
     final controller = context.watch<SolicitudesController>();
 
+    return Scaffold(
+      appBar: AppBar(title: const Text('Mis trabajos')),
+      body: _buildBody(controller),
+    );
+  }
+
+  Widget _buildBody(SolicitudesController controller) {
     // ⏳ Cargando
     if (controller.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Center(child: CircularProgressIndicator());
     }
 
     // 📭 Sin trabajos
     if (controller.solicitudes.isEmpty) {
-      return const Scaffold(
-        body: Center(
-          child: Text(
-            'No tienes trabajos asignados aún 👷‍♂️',
-            textAlign: TextAlign.center,
-          ),
+      return const Center(
+        child: Text(
+          'No tienes trabajos asignados aún 👷‍♂️',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 16),
         ),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Mis trabajos')),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: controller.solicitudes.length,
-        itemBuilder: (_, i) {
-          final s = controller.solicitudes[i];
+    // 📋 Lista de trabajos
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: controller.solicitudes.length,
+      itemBuilder: (_, i) {
+        final s = controller.solicitudes[i];
 
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              title: Text(s['problema']),
-              subtitle: Text('Estado: ${s['estado']}'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DetalleSolicitudTecnicoPage(solicitud: s),
-                  ),
-                );
-              },
-            ),
-          );
-        },
-      ),
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ListTile(
+            title: Text(s['problema'] ?? 'Sin descripción'),
+            subtitle: Text('Estado: ${s['estado'] ?? '-'}'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DetalleSolicitudTecnicoPage(solicitud: s),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }

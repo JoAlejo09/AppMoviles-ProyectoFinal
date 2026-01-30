@@ -24,8 +24,12 @@ class ClientePerfilPage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
-              context.read<PerfilController>().reset();
-              context.read<AuthController>().logout();
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!context.mounted) return;
+
+                context.read<PerfilController>().reset();
+                context.read<AuthController>().logout();
+              });
             },
           ),
         ],

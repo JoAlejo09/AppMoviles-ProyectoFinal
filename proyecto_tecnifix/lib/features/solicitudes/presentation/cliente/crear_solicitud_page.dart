@@ -1,13 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../../../core/services/location_service.dart';
 import '../../controller/solicitudes_controller.dart';
-import '../../../perfil/controller/perfil_controller.dart';
-import '../../../tecnico/data/tecnico_repository.dart';
-import '../../data/solicitud_imagen_repository.dart';
-import '../../../../core/services/supabase_service.dart';
 
 class CrearSolicitudPage extends StatefulWidget {
   const CrearSolicitudPage({super.key});
@@ -19,120 +18,87 @@ class CrearSolicitudPage extends StatefulWidget {
 class _CrearSolicitudPageState extends State<CrearSolicitudPage> {
   final _formKey = GlobalKey<FormState>();
 
-  int? _servicioId;
-  final _problemaCtrl = TextEditingController();
-  final _detallesCtrl = TextEditingController();
+  final _categoriaCtrl = TextEditingController();
+  final _descripcionCtrl = TextEditingController();
+  final _direccionCtrl = TextEditingController();
 
-  // ───── Técnicos ─────
-  String? _tecnicoSeleccionadoId;
-  List<Map<String, dynamic>> _tecnicos = [];
-  bool _cargandoTecnicos = false;
-
-  // ───── Imágenes ─────
   final List<File> _imagenes = [];
   final ImagePicker _picker = ImagePicker();
 
+  GoogleMapController? _mapController;
+  Marker? _marker;
+  double? _lat;
+  double? _lng;
+
+  static const LatLng _defaultPos = LatLng(-0.180653, -78.467834);
+
   @override
   void dispose() {
-    _problemaCtrl.dispose();
-    _detallesCtrl.dispose();
+    _categoriaCtrl.dispose();
+    _descripcionCtrl.dispose();
+    _direccionCtrl.dispose();
     super.dispose();
   }
 
-  // ─────────────────────────────────────────────
-  // Cargar TOP técnicos
-  // ─────────────────────────────────────────────
-  Future<void> _cargarTecnicos() async {
-    final perfil = context.read<PerfilController>().perfil;
-    if (perfil == null) return;
-
-    setState(() => _cargandoTecnicos = true);
-
-    try {
-      final repo = TecnicoRepository(SupabaseService.client);
-
-      final data = await repo.obtenerTopTecnicos(
-        lat: perfil['latitud'],
-        lng: perfil['longitud'],
-      );
-
-      setState(() => _tecnicos = data);
-    } catch (e) {
-      debugPrint('❌ Error cargando técnicos: $e');
-    } finally {
-      setState(() => _cargandoTecnicos = false);
-    }
-  }
-
-  // ─────────────────────────────────────────────
-  // Seleccionar imagen
-  // ─────────────────────────────────────────────
-  Future<void> _seleccionarImagen() async {
+  // ───────── IMÁGENES (CÁMARA) ─────────
+  Future<void> _agregarImagen() async {
     final picked = await _picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 70,
+      source: ImageSource.camera, // ✅ SOLO CÁMARA
+      imageQuality: 75,
+      maxWidth: 1280,
     );
 
     if (picked != null) {
-      setState(() => _imagenes.add(File(picked.path)));
+      setState(() {
+        _imagenes.add(File(picked.path));
+      });
     }
   }
 
-  // ─────────────────────────────────────────────
-  // Crear solicitud
-  // ─────────────────────────────────────────────
-  Future<void> _crearSolicitud() async {
-    debugPrint('🔥 BOTÓN CREAR PRESIONADO');
+  void _eliminarImagen(int index) {
+    setState(() => _imagenes.removeAt(index));
+  }
 
-    final valid = _formKey.currentState!.validate();
-    debugPrint('🧪 FORM VALID: $valid');
+  // ───────── UBICACIÓN ─────────
+  Future<void> _usarMiUbicacion() async {
+    final pos = await LocationService.getCurrentPosition();
+    _setUbicacion(pos.latitude, pos.longitude);
+  }
 
-    if (!valid) {
+  void _setUbicacion(double lat, double lng) {
+    setState(() {
+      _lat = lat;
+      _lng = lng;
+      _marker = Marker(
+        markerId: const MarkerId('servicio'),
+        position: LatLng(lat, lng),
+      );
+    });
+
+    _mapController?.animateCamera(CameraUpdate.newLatLng(LatLng(lat, lng)));
+  }
+
+  // ───────── GUARDAR ─────────
+  Future<void> _guardar() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_lat == null || _lng == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Completa los campos obligatorios')),
+        const SnackBar(content: Text('Selecciona la ubicación del servicio')),
       );
       return;
     }
 
-    if (_servicioId == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Selecciona un servicio')));
-      return;
-    }
+    await context.read<SolicitudesController>().crearSolicitud(
+      categoria: _categoriaCtrl.text.trim(),
+      descripcion: _descripcionCtrl.text.trim(),
+      direccionServicio: _direccionCtrl.text.trim(),
+      latServicio: _lat!,
+      lngServicio: _lng!,
+      imagenes: _imagenes,
+    );
 
-    try {
-      final controller = context.read<SolicitudesController>();
-
-      final solicitudId = await controller.crearSolicitud(
-        servicioId: _servicioId!,
-        problema: _problemaCtrl.text.trim(),
-        detalles: _detallesCtrl.text.trim(),
-        tecnicoId: _tecnicoSeleccionadoId,
-      );
-
-      debugPrint('✅ Solicitud creada con ID: $solicitudId');
-
-      // Subir imágenes
-      if (_imagenes.isNotEmpty) {
-        final imgRepo = SolicitudImagenRepository(SupabaseService.client);
-
-        for (final img in _imagenes) {
-          final url = await imgRepo.subirImagen(
-            file: img,
-            solicitudId: solicitudId,
-          );
-          await imgRepo.guardarImagen(solicitudId: solicitudId, url: url);
-        }
-      }
-
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      debugPrint('❌ Error al crear solicitud: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error al crear solicitud: $e')));
-    }
+    if (mounted) Navigator.pop(context);
   }
 
   @override
@@ -140,7 +106,7 @@ class _CrearSolicitudPageState extends State<CrearSolicitudPage> {
     final solicitudes = context.watch<SolicitudesController>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Nueva solicitud')),
+      appBar: AppBar(title: const Text('Crear solicitud')),
       body: solicitudes.isLoading
           ? const Center(child: CircularProgressIndicator())
           : Form(
@@ -148,30 +114,12 @@ class _CrearSolicitudPageState extends State<CrearSolicitudPage> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  // ───────── Servicio ─────────
-                  DropdownButtonFormField<int>(
-                    value: _servicioId,
-                    decoration: const InputDecoration(labelText: 'Servicio'),
-                    items: const [
-                      DropdownMenuItem(value: 1, child: Text('Electricidad')),
-                      DropdownMenuItem(value: 2, child: Text('Plomería')),
-                      DropdownMenuItem(value: 3, child: Text('Carpintería')),
-                    ],
-                    onChanged: (v) {
-                      setState(() => _servicioId = v);
-                      _cargarTecnicos();
-                    },
-                    validator: (v) =>
-                        v == null ? 'Selecciona un servicio' : null,
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // ───────── Problema ─────────
+                  // ───────── CATEGORÍA ─────────
                   TextFormField(
-                    controller: _problemaCtrl,
+                    controller: _categoriaCtrl,
                     decoration: const InputDecoration(
-                      labelText: 'Describe el problema',
+                      labelText: 'Categoría',
+                      hintText: 'Ej: Electricidad, Plomería',
                     ),
                     validator: (v) =>
                         v == null || v.isEmpty ? 'Campo obligatorio' : null,
@@ -179,70 +127,98 @@ class _CrearSolicitudPageState extends State<CrearSolicitudPage> {
 
                   const SizedBox(height: 12),
 
-                  // ───────── Detalles ─────────
+                  // ───────── DESCRIPCIÓN ─────────
                   TextFormField(
-                    controller: _detallesCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Detalles (opcional)',
-                    ),
+                    controller: _descripcionCtrl,
                     maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción del problema',
+                    ),
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Campo obligatorio' : null,
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ───────── DIRECCIÓN ─────────
+                  TextFormField(
+                    controller: _direccionCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Referencia / Dirección',
+                    ),
                   ),
 
                   const SizedBox(height: 20),
 
-                  // ───────── Fotos ─────────
+                  // ───────── IMÁGENES ─────────
                   const Text(
-                    'Fotos del problema',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    'Imágenes del problema',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
 
                   Wrap(
                     spacing: 8,
-                    runSpacing: 8,
                     children: [
-                      ..._imagenes.map(
-                        (img) => Stack(
+                      ..._imagenes.asMap().entries.map(
+                        (e) => Stack(
                           children: [
                             Image.file(
-                              img,
-                              width: 100,
-                              height: 100,
+                              e.value,
+                              width: 80,
+                              height: 80,
                               fit: BoxFit.cover,
                             ),
                             Positioned(
-                              top: 0,
                               right: 0,
-                              child: GestureDetector(
-                                onTap: () =>
-                                    setState(() => _imagenes.remove(img)),
-                                child: const Icon(
-                                  Icons.close,
-                                  color: Colors.red,
-                                ),
+                              child: IconButton(
+                                icon: const Icon(Icons.close, size: 18),
+                                onPressed: () => _eliminarImagen(e.key),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      GestureDetector(
-                        onTap: _seleccionarImagen,
-                        child: Container(
-                          width: 100,
-                          height: 100,
-                          color: Colors.grey.shade300,
-                          child: const Icon(Icons.camera_alt),
-                        ),
+                      IconButton(
+                        icon: const Icon(Icons.camera_alt),
+                        onPressed: _agregarImagen,
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 20),
 
-                  // ───────── Crear ─────────
+                  // ───────── UBICACIÓN ─────────
+                  ElevatedButton.icon(
+                    onPressed: _usarMiUbicacion,
+                    icon: const Icon(Icons.my_location),
+                    label: const Text('Usar ubicación del servicio'),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  SizedBox(
+                    height: 220,
+                    child: GoogleMap(
+                      initialCameraPosition: const CameraPosition(
+                        target: _defaultPos,
+                        zoom: 14,
+                      ),
+                      myLocationEnabled: true,
+                      zoomControlsEnabled: false,
+                      onMapCreated: (c) => _mapController = c,
+                      markers: _marker != null ? {_marker!} : {},
+                      onTap: (pos) =>
+                          _setUbicacion(pos.latitude, pos.longitude),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // ───────── GUARDAR ─────────
                   ElevatedButton(
-                    onPressed: _crearSolicitud,
-                    child: const Text('Crear solicitud'),
+                    onPressed: _guardar,
+                    child: const Text('Publicar solicitud'),
                   ),
                 ],
               ),

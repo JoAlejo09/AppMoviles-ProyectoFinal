@@ -13,11 +13,9 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // Controladores para leer el texto de los inputs
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  // Liberamos memoria cuando se destruye la pantalla
   @override
   void dispose() {
     _emailController.dispose();
@@ -27,7 +25,6 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Escuchamos SOLO el estado (loading / error)
     final auth = context.watch<AuthController>();
 
     return Scaffold(
@@ -37,6 +34,11 @@ class _LoginPageState extends State<LoginPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // LOGO
+            Image.asset('assets/images/logo.png', height: 120),
+
+            const SizedBox(height: 20),
+
             // EMAIL
             TextField(
               controller: _emailController,
@@ -45,6 +47,7 @@ class _LoginPageState extends State<LoginPage> {
                 labelText: 'Correo electrónico',
               ),
             ),
+
             const SizedBox(height: 12),
 
             // PASSWORD
@@ -53,6 +56,7 @@ class _LoginPageState extends State<LoginPage> {
               obscureText: true,
               decoration: const InputDecoration(labelText: 'Contraseña'),
             ),
+
             const SizedBox(height: 20),
 
             // ERROR

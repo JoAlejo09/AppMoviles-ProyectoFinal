@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:proyecto_tecnifix/features/auth/presentation/pages/login_page.dart';
-import 'package:proyecto_tecnifix/features/perfil/presentation/perfil_gate.dart';
+import 'package:proyecto_tecnifix/features/perfil/perfil_gate.dart';
 
 import 'presentation/controllers/auth_controller.dart';
-//import 'presentation/pages/welcome_page.dart';
-import '../perfil/presentation/perfil_gate.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});

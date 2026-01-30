@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:proyecto_tecnifix/features/solicitudes/controller/solicitudes_controller.dart';
 
 import '../../../solicitudes/presentation/cliente/crear_solicitud_page.dart';
 
@@ -29,11 +31,14 @@ class ClienteInicioPage extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              onPressed: () {
-                Navigator.push(
+              onPressed: () async {
+                await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const CrearSolicitudPage()),
                 );
+                if (context.mounted) {
+                  context.read<SolicitudesController>().cargarMisSolicitudes();
+                }
               },
             ),
           ],

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../solicitudes/presentation/cliente/mis_solicitudes_page.dart';
+import '../../solicitudes/presentation/cliente/crear_solicitud_page.dart';
 import 'tabs/cliente_inicio_page.dart';
-import 'tabs/cliente_solicitudes_page.dart';
 import 'tabs/cliente_perfil_page.dart';
 
 class HomeClientePage extends StatefulWidget {
@@ -16,7 +17,7 @@ class _HomeClientePageState extends State<HomeClientePage> {
 
   final _pages = const [
     ClienteInicioPage(),
-    ClienteSolicitudesPage(),
+    MisSolicitudesPage(),
     ClientePerfilPage(),
   ];
 

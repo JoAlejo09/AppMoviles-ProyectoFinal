@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:proyecto_tecnifix/features/chat/controller/chat_controller.dart';
 import 'package:proyecto_tecnifix/features/chat/data/chat_repository.dart';
+import 'package:proyecto_tecnifix/features/cotizaciones/controller/cotizaciones_controller.dart';
+import 'package:proyecto_tecnifix/features/cotizaciones/data/cotiizaciones_repository.dart';
 import 'package:proyecto_tecnifix/features/solicitudes/controller/solicitudes_controller.dart';
 import 'package:proyecto_tecnifix/features/solicitudes/data/solicitudes_repository.dart';
 import 'package:proyecto_tecnifix/features/tecnico/controller/tecnico_controller.dart';
-import 'package:proyecto_tecnifix/features/tecnico/data/tecnico_repository.dart';
+import '/features/tecnico/data/tecnico_repository.dart';
 
 import 'app.dart';
 import 'core/services/supabase_service.dart';
@@ -49,6 +51,12 @@ Future<void> main() async {
         ChangeNotifierProvider(
           create: (_) => SolicitudesController(
             SolicitudesRepository(SupabaseService.client),
+          ),
+        ),
+        //COTIZACIONES
+        ChangeNotifierProvider(
+          create: (_) => CotizacionesController(
+            CotizacionesRepository(SupabaseService.client),
           ),
         ),
         //CHATS

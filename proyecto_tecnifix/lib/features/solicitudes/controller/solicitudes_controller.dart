@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../data/solicitudes_repository.dart';
 
@@ -6,138 +7,146 @@ class SolicitudesController extends ChangeNotifier {
 
   SolicitudesController(this._repository);
 
-  bool isLoading = false;
+  bool _isLoading = false;
+  String? _error;
 
-  /// Lista general usada por las vistas
-  List<Map<String, dynamic>> solicitudes = [];
+  bool get isLoading => _isLoading;
+  String? get error => _error;
 
-  // ─────────────────────────────────────────────
-  // CLIENTE
-  // ─────────────────────────────────────────────
+  List<Map<String, dynamic>> _misSolicitudes = [];
+  List<Map<String, dynamic>> _solicitudesDisponibles = [];
+  List<Map<String, dynamic>> _trabajosTecnico = [];
 
-  Future<void> cargarSolicitudesCliente() async {
-    try {
-      _setLoading(true);
-      solicitudes = await _repository.obtenerSolicitudesCliente();
-    } catch (e, st) {
-      debugPrint('❌ Error cargarSolicitudesCliente: $e');
-      debugPrint('$st');
-      solicitudes = [];
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  Future<int> crearSolicitud({
-    required int servicioId,
-    required String problema,
-    String? detalles,
-    String? tecnicoId,
-  }) async {
-    try {
-      _setLoading(true);
-
-      final data = await _repository.crearSolicitud(
-        servicioId: servicioId,
-        problema: problema,
-        detalles: detalles,
-        tecnicoId: tecnicoId,
-      );
-
-      // refrescar lista cliente
-      solicitudes = await _repository.obtenerSolicitudesCliente();
-
-      return data['id'] as int;
-    } catch (e, st) {
-      debugPrint('❌ Error al crear solicitud: $e');
-      debugPrint('$st');
-      rethrow; // la UI debe enterarse
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  // ─────────────────────────────────────────────
-  // TÉCNICO
-  // ─────────────────────────────────────────────
-
-  Future<void> cargarSolicitudesTecnico() async {
-    try {
-      _setLoading(true);
-      solicitudes = await _repository.obtenerSolicitudesTecnico();
-    } catch (e, st) {
-      debugPrint('❌ Error cargarSolicitudesTecnico: $e');
-      debugPrint('$st');
-      solicitudes = [];
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  Future<void> cargarSolicitudesPendientes() async {
-    try {
-      _setLoading(true);
-      solicitudes = await _repository.obtenerSolicitudesPendientes();
-    } catch (e, st) {
-      debugPrint('❌ Error cargarSolicitudesPendientes: $e');
-      debugPrint('$st');
-      solicitudes = [];
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  Future<void> aceptarSolicitud(int solicitudId) async {
-    try {
-      _setLoading(true);
-
-      await _repository.aceptarSolicitud(solicitudId);
-
-      // Volver a cargar pendientes
-      solicitudes = await _repository.obtenerSolicitudesPendientes();
-    } catch (e, st) {
-      debugPrint('❌ Error aceptarSolicitud: $e');
-      debugPrint('$st');
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  // ─────────────────────────────────────────────
-  // ESTADOS
-  // ─────────────────────────────────────────────
-
-  Future<void> cambiarEstado({
-    required int solicitudId,
-    required String nuevoEstado,
-  }) async {
-    try {
-      _setLoading(true);
-
-      await _repository.cambiarEstado(
-        solicitudId: solicitudId,
-        nuevoEstado: nuevoEstado,
-      );
-    } catch (e, st) {
-      debugPrint('❌ Error cambiarEstado: $e');
-      debugPrint('$st');
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  // ─────────────────────────────────────────────
-  // UTILIDAD
-  // ─────────────────────────────────────────────
-
-  void _setLoading(bool value) {
-    isLoading = value;
-    notifyListeners();
-  }
+  List<Map<String, dynamic>> get misSolicitudes => _misSolicitudes;
+  List<Map<String, dynamic>> get solicitudesDisponibles =>
+      _solicitudesDisponibles;
+  List<Map<String, dynamic>> get trabajosTecnico => _trabajosTecnico;
 
   void reset() {
-    solicitudes = [];
-    isLoading = false;
+    _isLoading = false;
+    _error = null;
+    _misSolicitudes = [];
+    _solicitudesDisponibles = [];
+    _trabajosTecnico = [];
     notifyListeners();
+  }
+
+  // ─────────────────────────────────────────────
+  // CLIENTE → CREAR SOLICITUD
+  // ─────────────────────────────────────────────
+  Future<void> crearSolicitud({
+    required String categoria,
+    required String descripcion,
+    required double latServicio,
+    required double lngServicio,
+    String? direccionServicio,
+    List<File> imagenes = const [],
+  }) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      final solicitudId = await _repository.crearSolicitud(
+        categoria: categoria,
+        descripcion: descripcion,
+        latServicio: latServicio,
+        lngServicio: lngServicio,
+        direccionServicio: direccionServicio,
+      );
+
+      for (final file in imagenes) {
+        final path = await _repository.subirImagenSolicitud(
+          solicitudId: solicitudId,
+          file: file,
+        );
+        await _repository.guardarImagenSolicitud(
+          solicitudId: solicitudId,
+          path: path,
+        );
+      }
+
+      await cargarMisSolicitudes();
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // CLIENTE → MIS SOLICITUDES
+  // ─────────────────────────────────────────────
+  Future<void> cargarMisSolicitudes() async {
+    _misSolicitudes = await _repository.obtenerMisSolicitudes();
+    notifyListeners();
+  }
+
+  // ─────────────────────────────────────────────
+  // TÉCNICO → DISPONIBLES
+  // ─────────────────────────────────────────────
+  Future<void> cargarSolicitudesDisponibles({required String categoria}) async {
+    _isLoading = true;
+    notifyListeners();
+
+    _solicitudesDisponibles = await _repository.obtenerSolicitudesDisponibles(
+      categoria: categoria,
+    );
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  // ─────────────────────────────────────────────
+  // TÉCNICO → MIS TRABAJOS
+  // ─────────────────────────────────────────────
+  Future<void> cargarTrabajosTecnico() async {
+    _isLoading = true;
+    notifyListeners();
+
+    _trabajosTecnico = await _repository.obtenerTrabajosTecnico();
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  // ─────────────────────────────────────────────
+  // TÉCNICO → FINALIZAR TRABAJO
+  // ─────────────────────────────────────────────
+  Future<void> finalizarTrabajo(int solicitudId) async {
+    _isLoading = true;
+    notifyListeners();
+
+    await _repository.finalizarTrabajo(solicitudId);
+    await cargarTrabajosTecnico();
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<String> obtenerImagenFirmada(String path) async {
+    return await _repository.obtenerImagenFirmada(path);
+  }
+
+  // ─────────────────────────────────────────────
+  // TÉCNICO → INICIAR TRABAJO
+  // ─────────────────────────────────────────────
+  Future<void> iniciarTrabajo(int solicitudId) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      await _repository.iniciarTrabajo(solicitudId);
+
+      // refrescar trabajos del técnico
+      await cargarTrabajosTecnico();
+    } catch (e) {
+      _error = e.toString();
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 }

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../controller/perfil_controller.dart';
-import '../../tecnico/controller/tecnico_controller.dart';
-import 'completar_perfil_page.dart';
-import '../../tecnico/presentation/completar_tecnico_detalle_page.dart';
-import '../../home/home_gate.dart';
+import 'controller/perfil_controller.dart';
+import '../tecnico/controller/tecnico_controller.dart';
+import 'presentation/completar_perfil_page.dart';
+import '../tecnico/presentation/completar_tecnico_detalle_page.dart';
+import '../home/home_gate.dart';
 
 class PerfilGate extends StatefulWidget {
   const PerfilGate({super.key});
@@ -22,12 +22,12 @@ class _PerfilGateState extends State<PerfilGate> {
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    final perfilController = context.read<PerfilController>();
-
-    // 🔹 Cargar perfil base UNA sola vez
     if (!_perfilCargado) {
-      perfilController.cargarPerfil();
       _perfilCargado = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<PerfilController>().cargarPerfil();
+      });
     }
   }
 
@@ -35,27 +35,29 @@ class _PerfilGateState extends State<PerfilGate> {
   Widget build(BuildContext context) {
     final perfilController = context.watch<PerfilController>();
 
-    // ⏳ Cargando perfil
+    // ⏳ Cargando perfil base
     if (perfilController.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final perfil = perfilController.perfil;
 
-    // 1️⃣ PERFIL BASE NO COMPLETO → formulario base
+    // 1️⃣ PERFIL BASE INCOMPLETO
     if (!perfilController.perfilCompleto) {
       _tecnicoCargado = false; // reset por si cambia rol
       return const CompletarPerfilPage();
     }
 
-    // 2️⃣ SI ES TÉCNICO → validar detalle técnico
+    // 2️⃣ PERFIL TÉCNICO → validar detalle técnico
     if (perfil != null && perfil['rol'] == 'tecnico') {
       final tecnicoController = context.watch<TecnicoController>();
 
-      // Cargar detalle técnico UNA sola vez
       if (!_tecnicoCargado) {
-        tecnicoController.cargarDetalle();
         _tecnicoCargado = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          context.read<TecnicoController>().cargarDetalle();
+        });
       }
 
       // ⏳ Cargando detalle técnico

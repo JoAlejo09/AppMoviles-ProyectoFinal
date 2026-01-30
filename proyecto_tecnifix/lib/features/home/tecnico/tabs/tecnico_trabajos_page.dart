@@ -12,19 +12,15 @@ class TecnicoTrabajosPage extends StatefulWidget {
 }
 
 class _TecnicoTrabajosPageState extends State<TecnicoTrabajosPage> {
-  bool _cargado = false;
-
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void initState() {
+    super.initState();
 
-    if (!_cargado) {
-      // Ejecutar después del build para evitar problemas de contexto
-      Future.microtask(() {
-        context.read<SolicitudesController>().cargarSolicitudesTecnico();
-      });
-      _cargado = true;
-    }
+    // ✅ Cargar UNA sola vez (patrón correcto con Provider)
+    Future.microtask(() {
+      if (!mounted) return;
+      context.read<SolicitudesController>().cargarTrabajosTecnico();
+    });
   }
 
   @override
@@ -43,13 +39,25 @@ class _TecnicoTrabajosPageState extends State<TecnicoTrabajosPage> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    // 📭 Sin trabajos
-    if (controller.solicitudes.isEmpty) {
+    // 📭 Sin trabajos asignados
+    if (controller.trabajosTecnico.isEmpty) {
       return const Center(
-        child: Text(
-          'No tienes trabajos asignados aún 👷‍♂️',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 16),
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.build_outlined, size: 72, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                'Aún no tienes trabajos asignados.\n'
+                'Cuando un cliente acepte tu cotización,\n'
+                'aparecerá aquí.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -57,15 +65,32 @@ class _TecnicoTrabajosPageState extends State<TecnicoTrabajosPage> {
     // 📋 Lista de trabajos
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: controller.solicitudes.length,
-      itemBuilder: (_, i) {
-        final s = controller.solicitudes[i];
+      itemCount: controller.trabajosTecnico.length,
+      itemBuilder: (context, index) {
+        final s = controller.trabajosTecnico[index];
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
-            title: Text(s['problema'] ?? 'Sin descripción'),
-            subtitle: Text('Estado: ${s['estado'] ?? '-'}'),
+            title: Text(
+              s['categoria'] ?? '',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  s['descripcion'] ?? '',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Estado: ${s['estado']}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.push(

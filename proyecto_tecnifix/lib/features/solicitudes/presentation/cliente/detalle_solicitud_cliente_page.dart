@@ -2,27 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 
-import '../../../cotizaciones/controller/cotizaciones_controller.dart';
-import '../../../solicitudes/controller/solicitudes_controller.dart';
-import '../../../cotizaciones/presentation/tecnico/enviar_cotizacion_page.dart';
+import 'package:proyecto_tecnifix/features/solicitudes/controller/solicitudes_controller.dart';
+import 'package:proyecto_tecnifix/features/cotizaciones/presentation/cotizaciones_solicitud_page.dart';
+import 'package:proyecto_tecnifix/features/pagos/presentation/pago_solicitud_page.dart';
 
-class DetalleSolicitudTecnicoPage extends StatelessWidget {
+class DetalleSolicitudClientePage extends StatelessWidget {
   final Map<String, dynamic> solicitud;
 
-  const DetalleSolicitudTecnicoPage({super.key, required this.solicitud});
+  const DetalleSolicitudClientePage({super.key, required this.solicitud});
 
   @override
   Widget build(BuildContext context) {
-    final s = solicitud;
+    final imagenes = solicitud['solicitud_imagenes'] as List<dynamic>? ?? [];
 
-    final imagenes = s['solicitud_imagenes'] as List<dynamic>? ?? [];
-    final lat = (s['latitud_servicio'] as num).toDouble();
-    final lng = (s['longitud_servicio'] as num).toDouble();
-    final estado = s['estado'] as String;
-
+    final lat = (solicitud['latitud_servicio'] as num).toDouble();
+    final lng = (solicitud['longitud_servicio'] as num).toDouble();
     final position = LatLng(lat, lng);
 
-    final solicitudesCtrl = context.watch<SolicitudesController>();
+    final controller = context.read<SolicitudesController>();
+    final estado = solicitud['estado'] as String;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Detalle de solicitud')),
@@ -31,11 +29,11 @@ class DetalleSolicitudTecnicoPage extends StatelessWidget {
         children: [
           // ───────── CATEGORÍA ─────────
           Text(
-            s['categoria'],
+            solicitud['categoria'],
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
 
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
 
           // ───────── ESTADO ─────────
           Chip(
@@ -49,7 +47,7 @@ class DetalleSolicitudTecnicoPage extends StatelessWidget {
           const SizedBox(height: 12),
 
           // ───────── DESCRIPCIÓN ─────────
-          Text(s['descripcion']),
+          Text(solicitud['descripcion']),
 
           const SizedBox(height: 16),
 
@@ -67,15 +65,39 @@ class DetalleSolicitudTecnicoPage extends StatelessWidget {
                 itemCount: imagenes.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
-                  final url = imagenes[index]['imagen_url'];
+                  final path = imagenes[index]['imagen_url'] as String;
 
                   return ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      url,
-                      width: 120,
-                      height: 120,
-                      fit: BoxFit.cover,
+                    child: FutureBuilder<String>(
+                      future: controller.obtenerImagenFirmada(path),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const SizedBox(
+                            width: 120,
+                            height: 120,
+                            child: Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        }
+
+                        if (snapshot.hasError || !snapshot.hasData) {
+                          return const SizedBox(
+                            width: 120,
+                            height: 120,
+                            child: Icon(Icons.broken_image),
+                          );
+                        }
+
+                        return Image.network(
+                          snapshot.data!,
+                          width: 120,
+                          height: 120,
+                          fit: BoxFit.cover,
+                        );
+                      },
                     ),
                   );
                 },
@@ -108,58 +130,55 @@ class DetalleSolicitudTecnicoPage extends StatelessWidget {
 
           // ───────── ACCIONES ─────────
 
-          // 🔹 ENVIAR COTIZACIÓN
+          // 🔹 VER COTIZACIONES
           if (estado == 'abierta')
             _BotonAccion(
-              icon: Icons.attach_money,
-              label: 'Enviar cotización',
+              icon: Icons.list_alt,
+              label: 'Ver cotizaciones',
               color: Colors.blue,
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => EnviarCotizacionPage(solicitudId: s['id']),
+                    builder: (_) =>
+                        CotizacionesSolicitudPage(solicitud: solicitud),
                   ),
                 );
               },
             ),
 
-          // 🔹 INICIAR TRABAJO
-          if (estado == 'aceptada')
-            _BotonAccion(
-              icon: Icons.play_arrow,
-              label: 'Iniciar trabajo',
-              color: Colors.orange,
-              onPressed: solicitudesCtrl.isLoading
-                  ? null
-                  : () async {
-                      await solicitudesCtrl.iniciarTrabajo(s['id']);
-                      if (context.mounted) Navigator.pop(context);
-                    },
-            ),
-
-          // 🔹 FINALIZAR TRABAJO
-          if (estado == 'en_proceso')
-            _BotonAccion(
-              icon: Icons.check_circle,
-              label: 'Finalizar trabajo',
-              color: Colors.green,
-              onPressed: solicitudesCtrl.isLoading
-                  ? null
-                  : () async {
-                      await solicitudesCtrl.finalizarTrabajo(s['id']);
-                      if (context.mounted) Navigator.pop(context);
-                    },
-            ),
-
+          // 🔹 PAGAR SERVICIO
           if (estado == 'finalizada')
+            _BotonAccion(
+              icon: Icons.payment,
+              label: 'Pagar servicio',
+              color: Colors.green,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PagoSolicitudPage(
+                      solicitudId: solicitud['id'],
+                      monto:
+                          (solicitud['precio_final'] as num?)?.toDouble() ?? 0,
+                    ),
+                  ),
+                );
+              },
+            ),
+
+          // 🔹 PAGADO
+          if (estado == 'pagada')
             const Center(
-              child: Text(
-                'Trabajo finalizado',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+              child: Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Text(
+                  'Servicio pagado ✅',
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -180,6 +199,8 @@ class DetalleSolicitudTecnicoPage extends StatelessWidget {
       case 'en_proceso':
         return Colors.deepOrange;
       case 'finalizada':
+        return Colors.purple;
+      case 'pagada':
         return Colors.green;
       default:
         return Colors.grey;
@@ -194,7 +215,7 @@ class _BotonAccion extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
-  final VoidCallback? onPressed;
+  final VoidCallback onPressed;
 
   const _BotonAccion({
     required this.icon,
